@@ -3,6 +3,9 @@ package jpabasic.securityjwt.config;
 import jpabasic.securityjwt.jwt.filter.JWTFilter;
 import jpabasic.securityjwt.jwt.filter.LoginFilter;
 import jpabasic.securityjwt.jwt.util.JWTUtil;
+import jpabasic.securityjwt.service.RefreshTokenService;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,12 +29,16 @@ public class SecurityConfig {
 
     @Value("${spring.jwt.access-token-validity-in-milliseconds}")
     private Long accessTokenValidity;
+    @Value("${spring.jwt.refresh-token-validity-in-milliseconds}")
+    private Long accessRefreshTokenValidity;
     private final AuthenticationConfiguration authenticationConfiguration;
     private final JWTUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil) {
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil, RefreshTokenService refreshTokenService) {
         this.authenticationConfiguration = authenticationConfiguration;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Bean
@@ -48,7 +55,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         AuthenticationManager authManager = authenticationManager(authenticationConfiguration);
 
-        LoginFilter loginFilter = new LoginFilter(accessTokenValidity, authManager, jwtUtil);
+        LoginFilter loginFilter = new LoginFilter(accessTokenValidity,accessRefreshTokenValidity, authManager, jwtUtil, refreshTokenService);
         loginFilter.setFilterProcessesUrl("/api/login");
 
         http
@@ -64,7 +71,7 @@ public class SecurityConfig {
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new JWTFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JWTFilter(jwtUtil,refreshTokenService,accessTokenValidity,accessRefreshTokenValidity), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

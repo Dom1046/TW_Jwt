@@ -1,6 +1,7 @@
 package jpabasic.securityjwt.jwt.util;
 
 import io.jsonwebtoken.Jwts;
+import jpabasic.securityjwt.entity.TokenCategory;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,8 +22,21 @@ public class JWTUtil {
         secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), Jwts.SIG.HS256.key().build().getAlgorithm());
     }
 
-    public String createJwt(Map<String, Object> valueMap, Long min) {
+    public String createAccessToken(Map<String, Object> valueMap, Long min) {
         Date now = new Date();
+        return Jwts.builder().header().add("alg", "HS256").add("type", "JWT")
+                .and()
+                .claims(valueMap)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(       //토큰 만료 시간
+                        new Date( now.getTime() +
+                                Duration.ofMinutes(min).toMillis()) )
+                .signWith(secretKey)
+                .compact();
+    }
+    public String createRefreshToken(Map<String, Object> valueMap, Long min) {
+        Date now = new Date();
+        valueMap.put("category", TokenCategory.REFRESH_TOKEN);
         return Jwts.builder().header().add("alg", "HS256").add("type", "JWT")
                 .and()
                 .claims(valueMap)
