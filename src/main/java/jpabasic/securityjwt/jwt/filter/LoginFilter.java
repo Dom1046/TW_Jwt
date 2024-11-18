@@ -66,9 +66,10 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         payloadMap.put("email", email);
         payloadMap.put("role", role);
         payloadMap.put("category", TokenCategory.ACCESS_TOKEN.name());
-
         String accessToken = jwtUtil.createAccessToken(payloadMap, accessTokenValidity);
+        payloadMap.put("category", TokenCategory.REFRESH_TOKEN.name());
         String refreshToken = jwtUtil.createRefreshToken(payloadMap, accessRefreshTokenValidity);
+        log.info("로그인, 토큰만듬: {}, refresh: {}", accessToken,refreshToken);
 
         response.addHeader("Authorization", "Bearer " + accessToken);
         response.addCookie(createCookie(refreshToken));
@@ -92,8 +93,8 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         Cookie cookie = new Cookie("refreshToken", refreshCookie);
         cookie.setMaxAge(3*24 * 60 * 60);
         // cookie.setSecure(true);
-        // cookie.setPath("/");
-        cookie.setHttpOnly(true);
+         cookie.setPath("/");
+//        cookie.setHttpOnly(true);
         return cookie;
     }
 }

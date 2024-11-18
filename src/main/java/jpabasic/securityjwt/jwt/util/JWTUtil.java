@@ -1,6 +1,8 @@
 package jpabasic.securityjwt.jwt.util;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import jpabasic.securityjwt.entity.TokenCategory;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,8 +37,8 @@ public class JWTUtil {
                 .compact();
     }
     public String createRefreshToken(Map<String, Object> valueMap, Long min) {
-        Date now = new Date();
-        valueMap.put("category", TokenCategory.REFRESH_TOKEN);
+        try{
+            Date now = new Date();
         return Jwts.builder().header().add("alg", "HS256").add("type", "JWT")
                 .and()
                 .claims(valueMap)
@@ -46,14 +48,33 @@ public class JWTUtil {
                                 Duration.ofMinutes(min).toMillis()) )
                 .signWith(secretKey)
                 .compact();
+        }catch(Exception e){
+            log.error("리프레시 토큰 생성 실패: {}",e.getMessage());
+            throw e;
+        }
     }
     public Map<String, Object> validateToken(String token) {
-        return Jwts.parser().verifyWith(secretKey).build()
-                .parseSignedClaims(token).getPayload();
+        try{
+            return Jwts.parser().verifyWith(secretKey).build()
+                    .parseSignedClaims(token).getPayload();
+        }catch (ExpiredJwtException e){
+            log.error("토큰이 만료되었어요: {}, token {}", e.getMessage(), token);
+            return e.getClaims();
+        }catch (Exception e){
+            log.error("토큰 유효성검사 실패 : {}, token {}", e.getMessage(), token);
+            throw e;
+        }
     }
 
     public Boolean isExpired(String token) {
-        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().getExpiration().before(new Date());
+        try {
+            return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().getExpiration().before(new Date());
+        }catch(ExpiredJwtException e){
+            log.error("토큰이 만료되었어요 : {}, token {}", e.getMessage(), token);
+            return e.getClaims().getExpiration().before(new Date());
+        }catch (Exception e){
+            log.error("토큰 만료확인 실패 : {}, token {}", e.getMessage(), token);
+            throw e;
+        }
     }
-
 }
