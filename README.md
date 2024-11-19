@@ -1,13 +1,14 @@
 # TW_Jwt
-### = 토이프로젝트- jwt토큰 구현
+## = 토이프로젝트- jwt토큰 구현
 
-### 1. 로그인시 (발급)
 
-Access Token
+### 1. 로그인시
 
-Refresh Token 
+Access Token 발급
 
-### 2. 로그아웃시 (토큰 삭제/차단)
+Refresh Token 발급
+
+### 2. 로그아웃시
    
 Access Token -> 차단
 
