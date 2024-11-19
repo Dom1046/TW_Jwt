@@ -31,7 +31,6 @@ public class RefreshTokenService {
 
     public String readRefreshTokenInRedis(Map<String, Object> payloadMap) {
         try {
-            log.info("최초로 토큰 읽는 내부{}",payloadMap);
             String refreshToken = (String) redisTemplate.opsForHash().get(HASH_NAME, makeHashKey(payloadMap));
             if (refreshToken == null) {
                 log.warn("No refreshToken found for userId: {}", payloadMap);

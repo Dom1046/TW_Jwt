@@ -30,7 +30,7 @@ public class JWTUtil {
                 .and()
                 .claims(valueMap)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(       //토큰 만료 시간
+                .expiration(
                         new Date( now.getTime() +
                                 Duration.ofMinutes(min).toMillis()))
                 .signWith(secretKey)

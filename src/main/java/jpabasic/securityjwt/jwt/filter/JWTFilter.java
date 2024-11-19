@@ -51,35 +51,27 @@ public class JWTFilter extends OncePerRequestFilter {
                 Map<String, Object> claims = jwtUtil.validateToken(accessToken);
                 if (jwtUtil.isExpired(accessToken)) {
                     String refreshTokenFromCookies = getRefreshTokenFromCookies(request);
-                    log.info("여기야?0{}",refreshTokenFromCookies);
                     if (refreshTokenFromCookies != null) {
                         try {
-                            log.info("여기야?1");
                             Map<String, Object> payload = jwtUtil.validateToken(refreshTokenFromCookies); //외부의 토큰 payload받음
-                            log.info("최초로 토큰 읽는 중{}",payload);
                             String refreshTokenInRedis = refreshTokenService.readRefreshTokenInRedis(payload);
 
                             if (refreshTokenFromCookies.equals(refreshTokenInRedis)) {
-                                log.info("여기야?2{} = ?{}",refreshTokenInRedis,refreshTokenFromCookies);
                                 String userId = (String)payload.get("userId");
                                 String email = (String)payload.get("email");
                                 String role = (String)payload.get("role");
-                                log.info("여기야?11: payloadMap: {},{},{}", userId,email,role);
 
                                 Map<String, Object> payloadMap = new HashMap<>();
                                 payloadMap.put("userId", userId);
                                 payloadMap.put("email", email);
                                 payloadMap.put("role", role);
                                 payloadMap.put("category", TokenCategory.ACCESS_TOKEN.name());
-                                log.info("여기야?22: payloadMap: {}", payloadMap);
                                 if (!jwtUtil.isExpired(refreshTokenFromCookies)) {
                                     String newAccessToken = jwtUtil.createAccessToken(payloadMap, accessTokenValidity);
                                     payloadMap.put("category", TokenCategory.REFRESH_TOKEN.name());
                                     String newRefreshToken = jwtUtil.createRefreshToken(payloadMap, accessRefreshTokenValidity);
-                                    log.info("여기야?3: payloadMap: {}", payloadMap);
                                     refreshTokenService.insertInRedis(payloadMap, newRefreshToken);
 
-                                    log.info("여기야?555: newAccessToken: {},newRefreshToken{}", newAccessToken,newRefreshToken);
                                     response.addHeader("Authorization", "Bearer " + newAccessToken);
                                     response.setStatus(HttpStatus.OK.value());
                                     Cookie refreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
