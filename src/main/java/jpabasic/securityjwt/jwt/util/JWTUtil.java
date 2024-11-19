@@ -32,7 +32,7 @@ public class JWTUtil {
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(       //토큰 만료 시간
                         new Date( now.getTime() +
-                                Duration.ofMinutes(min).toMillis()) )
+                                Duration.ofMinutes(min).toMillis()))
                 .signWith(secretKey)
                 .compact();
     }

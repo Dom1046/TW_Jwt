@@ -55,19 +55,31 @@ public class JWTFilter extends OncePerRequestFilter {
                     if (refreshTokenFromCookies != null) {
                         try {
                             log.info("여기야?1");
-                            Map<String, Object> payload = jwtUtil.validateToken(refreshTokenFromCookies);
+                            Map<String, Object> payload = jwtUtil.validateToken(refreshTokenFromCookies); //외부의 토큰 payload받음
+                            log.info("최초로 토큰 읽는 중{}",payload);
                             String refreshTokenInRedis = refreshTokenService.readRefreshTokenInRedis(payload);
 
                             if (refreshTokenFromCookies.equals(refreshTokenInRedis)) {
-                                log.info("여기야?2");
+                                log.info("여기야?2{} = ?{}",refreshTokenInRedis,refreshTokenFromCookies);
+                                String userId = (String)payload.get("userId");
+                                String email = (String)payload.get("email");
+                                String role = (String)payload.get("role");
+                                log.info("여기야?11: payloadMap: {},{},{}", userId,email,role);
+
+                                Map<String, Object> payloadMap = new HashMap<>();
+                                payloadMap.put("userId", userId);
+                                payloadMap.put("email", email);
+                                payloadMap.put("role", role);
+                                payloadMap.put("category", TokenCategory.ACCESS_TOKEN.name());
+                                log.info("여기야?22: payloadMap: {}", payloadMap);
                                 if (!jwtUtil.isExpired(refreshTokenFromCookies)) {
+                                    String newAccessToken = jwtUtil.createAccessToken(payloadMap, accessTokenValidity);
+                                    payloadMap.put("category", TokenCategory.REFRESH_TOKEN.name());
+                                    String newRefreshToken = jwtUtil.createRefreshToken(payloadMap, accessRefreshTokenValidity);
+                                    log.info("여기야?3: payloadMap: {}", payloadMap);
+                                    refreshTokenService.insertInRedis(payloadMap, newRefreshToken);
 
-                                    String newAccessToken = jwtUtil.createAccessToken(payload, accessTokenValidity);
-                                    String newRefreshToken = jwtUtil.createRefreshToken(payload, accessRefreshTokenValidity);
-                                    log.info("여기야?3: {}, refresh: {}", newAccessToken, newRefreshToken);
-                                    refreshTokenService.deleteRefreshTokenInRedis(payload);
-                                    refreshTokenService.insertInRedis(payload, newRefreshToken);
-
+                                    log.info("여기야?555: newAccessToken: {},newRefreshToken{}", newAccessToken,newRefreshToken);
                                     response.addHeader("Authorization", "Bearer " + newAccessToken);
                                     response.setStatus(HttpStatus.OK.value());
                                     Cookie refreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
@@ -75,9 +87,9 @@ public class JWTFilter extends OncePerRequestFilter {
                                     refreshTokenCookie.setMaxAge(3 * 24 * 60 * 60);
                                     response.addCookie(refreshTokenCookie);
 
-                                    String userId = claims.get("userId").toString();
-                                    String email = claims.get("email").toString();
-                                    String role = claims.get("role").toString();
+                                    userId = claims.get("userId").toString();
+                                    email = claims.get("email").toString();
+                                    role = claims.get("role").toString();
                                     Member member = Member.builder()
                                             .userId(userId)
                                             .email(new Email(email))
