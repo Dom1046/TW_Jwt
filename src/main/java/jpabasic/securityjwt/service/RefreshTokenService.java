@@ -16,14 +16,16 @@ import java.util.NoSuchElementException;
 public class RefreshTokenService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private static final String HASH_NAME = "RefreshTokens";
+    protected static final String REFRESH_KEY = "RefreshToken";
 
     public void insertInRedis(Map<String, Object> payloadMap, String refreshToken) {
+
         try {
-            if (!readRefreshTokenInRedis(payloadMap).isEmpty()){
+            if (refreshToken != null) {
                 deleteRefreshTokenInRedis(payloadMap);
             }
-            redisTemplate.opsForHash().put(HASH_NAME, makeHashKey(payloadMap), refreshToken);
+            deleteRefreshTokenInRedis(payloadMap);
+            redisTemplate.opsForHash().put(REFRESH_KEY, makeHashKey(payloadMap), refreshToken);
         } catch (Exception e) {
             log.error("redis failed to creat refreshToken :{}", e.getMessage());
         }
@@ -31,7 +33,7 @@ public class RefreshTokenService {
 
     public String readRefreshTokenInRedis(Map<String, Object> payloadMap) {
         try {
-            String refreshToken = (String) redisTemplate.opsForHash().get(HASH_NAME, makeHashKey(payloadMap));
+            String refreshToken = (String) redisTemplate.opsForHash().get(REFRESH_KEY, makeHashKey(payloadMap));
             if (refreshToken == null) {
                 log.warn("No refreshToken found for userId: {}", payloadMap);
                 throw new NoSuchElementException("No refresh token found for userId: " + payloadMap);
@@ -45,11 +47,12 @@ public class RefreshTokenService {
 
     public void deleteRefreshTokenInRedis(Map<String, Object> payloadMap) {
         try {
-            redisTemplate.opsForHash().delete(HASH_NAME, makeHashKey(payloadMap));
+            redisTemplate.opsForHash().delete(REFRESH_KEY, makeHashKey(payloadMap));
         } catch (Exception e) {
             log.error("redis failed to delete refreshToken :{}", e.getMessage());
         }
     }
+    // 회원 데이터 마다 다른 키값 만들기
     public String makeHashKey(Map<String, Object> payloadMap) {
         Object userId = payloadMap.get("userId");
         Object email = payloadMap.get("email");

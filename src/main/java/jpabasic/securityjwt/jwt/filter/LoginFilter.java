@@ -71,11 +71,12 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         String refreshToken = jwtUtil.createRefreshToken(payloadMap, accessRefreshTokenValidity);
         log.info("로그인, 토큰만듬: {}, refresh: {}", accessToken,refreshToken);
 
+        refreshTokenService.insertInRedis(payloadMap, refreshToken);
+
         response.addHeader("Authorization", "Bearer " + accessToken);
         response.addCookie(createCookie(refreshToken));
         response.setStatus(HttpStatus.OK.value());
 
-        refreshTokenService.insertInRedis(payloadMap, refreshToken);
     }
 
     @Override

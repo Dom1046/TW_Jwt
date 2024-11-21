@@ -1,8 +1,10 @@
 package jpabasic.securityjwt.controller;
 
+import ch.qos.logback.core.sift.AppenderFactoryUsingSiftModel;
 import jpabasic.securityjwt.dto.JoinRequestDTO;
 import jpabasic.securityjwt.service.MemberService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;

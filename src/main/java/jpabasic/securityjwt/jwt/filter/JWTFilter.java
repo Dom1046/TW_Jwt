@@ -11,6 +11,7 @@ import jpabasic.securityjwt.entity.TokenCategory;
 import jpabasic.securityjwt.entity.embadded.Email;
 import jpabasic.securityjwt.jwt.auth.CustomMemberDetails;
 import jpabasic.securityjwt.jwt.util.JWTUtil;
+import jpabasic.securityjwt.service.AccessTokenBlackList;
 import jpabasic.securityjwt.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -35,6 +36,7 @@ public class JWTFilter extends OncePerRequestFilter {
     private final RefreshTokenService refreshTokenService;
     private final Long accessTokenValidity;
     private final Long accessRefreshTokenValidity;
+    private final AccessTokenBlackList accessTokenBlackList;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -49,11 +51,18 @@ public class JWTFilter extends OncePerRequestFilter {
             if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
                 String accessToken = authorizationHeader.substring(7);
                 Map<String, Object> claims = jwtUtil.validateToken(accessToken);
+
+                if (accessTokenBlackList.checkBlackList(accessToken)){
+                    handleException(response, new Exception("ACCESS TOKEN IS BLOCKED"));
+                    return;
+                }
+
                 if (jwtUtil.isExpired(accessToken)) {
                     String refreshTokenFromCookies = getRefreshTokenFromCookies(request);
+
                     if (refreshTokenFromCookies != null) {
                         try {
-                            Map<String, Object> payload = jwtUtil.validateToken(refreshTokenFromCookies); //외부의 토큰 payload받음
+                            Map<String, Object> payload = jwtUtil.validateToken(refreshTokenFromCookies);
                             String refreshTokenInRedis = refreshTokenService.readRefreshTokenInRedis(payload);
 
                             if (refreshTokenFromCookies.equals(refreshTokenInRedis)) {
@@ -66,6 +75,7 @@ public class JWTFilter extends OncePerRequestFilter {
                                 payloadMap.put("email", email);
                                 payloadMap.put("role", role);
                                 payloadMap.put("category", TokenCategory.ACCESS_TOKEN.name());
+
                                 if (!jwtUtil.isExpired(refreshTokenFromCookies)) {
                                     String newAccessToken = jwtUtil.createAccessToken(payloadMap, accessTokenValidity);
                                     payloadMap.put("category", TokenCategory.REFRESH_TOKEN.name());
@@ -143,11 +153,10 @@ public class JWTFilter extends OncePerRequestFilter {
             throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
-        response.getWriter()
-                .println("{\"error\": \"" + e.getMessage() + "\"}");
+        response.getWriter().println("{\"error\": \"" + e.getMessage() + "\"}");
     }
 
-    public String getRefreshTokenFromCookies(HttpServletRequest request) {
+    private String getRefreshTokenFromCookies(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {

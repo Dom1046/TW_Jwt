@@ -2,7 +2,9 @@ package jpabasic.securityjwt.config;
 
 import jpabasic.securityjwt.jwt.filter.JWTFilter;
 import jpabasic.securityjwt.jwt.filter.LoginFilter;
+import jpabasic.securityjwt.jwt.filter.LogoutFilter;
 import jpabasic.securityjwt.jwt.util.JWTUtil;
+import jpabasic.securityjwt.service.AccessTokenBlackList;
 import jpabasic.securityjwt.service.RefreshTokenService;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -20,6 +22,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -34,11 +37,13 @@ public class SecurityConfig {
     private final AuthenticationConfiguration authenticationConfiguration;
     private final JWTUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final AccessTokenBlackList accessTokenBlackList;
 
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil, RefreshTokenService refreshTokenService) {
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil, RefreshTokenService refreshTokenService, AccessTokenBlackList accessTokenBlackList) {
         this.authenticationConfiguration = authenticationConfiguration;
         this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
+        this.accessTokenBlackList = accessTokenBlackList;
     }
 
     @Bean
@@ -55,8 +60,10 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         AuthenticationManager authManager = authenticationManager(authenticationConfiguration);
 
-        LoginFilter loginFilter = new LoginFilter(accessTokenValidity,accessRefreshTokenValidity, authManager, jwtUtil, refreshTokenService);
+        LoginFilter loginFilter = new LoginFilter(accessTokenValidity, accessRefreshTokenValidity, authManager, jwtUtil, refreshTokenService);
         loginFilter.setFilterProcessesUrl("/api/login");
+
+        LogoutFilter logoutFilter = new LogoutFilter(accessTokenBlackList, jwtUtil, refreshTokenService);
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -64,16 +71,15 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable);
         http
                 .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/login", "/", "/join").permitAll()
+                        .requestMatchers("/login", "/", "/join", "logout").permitAll()
                         .requestMatchers("/admin").hasRole("ADMIN")
                         .anyRequest().authenticated());
         http
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new JWTFilter(jwtUtil,refreshTokenService,accessTokenValidity,accessRefreshTokenValidity), UsernamePasswordAuthenticationFilter.class);
-
+                .addFilterBefore(new JWTFilter(jwtUtil, refreshTokenService, accessTokenValidity, accessRefreshTokenValidity, accessTokenBlackList), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(logoutFilter, JWTFilter.class);
         return http.build();
     }
-
 }
